@@ -1,0 +1,10 @@
+[package]
+name = "kgss"
+version = "0.1.0"
+authors = ["KILOgramM"]
+
+[dependencies]
+discord = { version = "0.8.0", default-features = false }
+regex = "0.2"
+reqwest = "*"
+
