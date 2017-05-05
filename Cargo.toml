@@ -7,4 +7,5 @@ authors = ["KILOgramM"]
 discord = { version = "0.8.0", default-features = false }
 regex = "0.2"
 reqwest = "*"
+mysql = "*"
 
