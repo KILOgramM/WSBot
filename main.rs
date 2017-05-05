@@ -76,7 +76,10 @@ fn main() {
     // Establish and use a websocket connection
     let (mut connection, _) = discord.connect().expect("connect failed");
     println!("Ready.");
-    let mut list = vec![];
+    let mut list: Vec<Player>;
+    let newplayer = Player::new("", "", false, true, true, true, "");
+    list.push(newplayer);
+
     loop {
         match connection.recv_event() {
             Ok(Event::MessageCreate(message)) => {
@@ -99,18 +102,20 @@ fn main() {
                         let _ = discord.send_message(message.channel_id, wsmix, "", false);
                     },
                     "!wsmixgo" => {
-                        if &list.iter().any(|p:&Player| p.name == message.author.name) {
-                            let _ = discord.send_message (message.channel_id, "Вы встали в очередь для поиска миксов", "", false);
-                            for i in list {
-                                if list.iter().any(|p:&Player| p.rdy == true) {
-                                let listmsg = format!("Игрок {} тоже ищет миксы", i.name);
-                                let _ = discord.send_message (message.channel_id, &listmsg, "", false);
+                        for i in list {
+                            if i.name == message.author.name {
+                                // do stuff
+                                let _ = discord.send_message(message.channel_id, "Вы встали в очередь для поиска миксов", "", false);
+                                for i in list {
+                                    if i.rdy == true {
+                                        let listmsg = format!("Игрок {} тоже ищет миксы", i.name);
+                                        let _ = discord.send_message(message.channel_id, &listmsg, "", false);
+                                    } else { return; }
                                 }
-                                else { return; }
                             }
-                        }
-                        else {
-                            let _ = discord.send_message (message.channel_id, "Введите команду !wsreg вместе с батлтагом. Например: !wsreg Valera#228", "", false);
+                            else {
+                                let _ = discord.send_message(message.channel_id, "Введите команду !wsreg вместе с батлтагом. Например: !wsreg Valera#228", "", false);
+                            };
                         };
                     },
                     //_ => {
@@ -143,9 +148,9 @@ fn main() {
                                 let acrat = format!("Ваш актуальный рейтинг: {}", rating);
                                 let _ = discord.send_message(message.channel_id, &acrat, "", false);
                                 println!("Рейтинг - {}", rating);
-                                let mixname = &message.author.name;
+                                let mixname = message.author.name;
                                 let fbtag = format!("{}#{}", name, id);
-                                let newplayer = Player::new((&mixname), &fbtag, false, true, true, true, "");
+                                let newplayer = Player::new(&mixname, &fbtag, false, true, true, true, "");
                                 list.push(newplayer);
                                 };
                         };
