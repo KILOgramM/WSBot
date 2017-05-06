@@ -8,7 +8,6 @@ use regex::Regex;
 use std::io::Read;
 
 
-
 fn main() {
     // Log in to Discord using a bot token from the environment
     let discord = Discord::from_bot_token(
@@ -22,8 +21,8 @@ fn main() {
         match connection.recv_event() {
             Ok(Event::MessageCreate(message)) => {
                 match message.content {
-                    "!help" => println!("два");//discord.send_message (message.channel_id, "Яша не балуйся с !help", "", false),
-                    _ => println!("{} says: {}", message.author.name, message.content);
+                    "!help" => println!("два"), //discord.send_message (message.channel_id, "Яша не балуйся с !help", "", false),
+                    _ => println!("{} says: {}", message.author.name, message.content),
                 };
                 if message.content == "!help" {
                     let _ = discord.send_message(
@@ -36,10 +35,9 @@ fn main() {
                     if resp.status().is_success() {
                         resp.read_to_string(&mut content);
                         println!("ok? - ");
-                    }
-                        else {
-                            println!("error");
-                        };
+                    } else {
+                        println!("error");
+                    };
                 } else {
                     let btag_reg = Regex::new(r"^!wsreg\s+([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}$").unwrap();
 

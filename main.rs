@@ -7,7 +7,6 @@ use discord::Discord;
 use discord::model::Event;
 use regex::Regex;
 use std::io::Read;
-use regex::SplitN;
 
 // Элемент очереди
 struct Player {
@@ -19,24 +18,22 @@ struct Player {
     t: bool, // Танк?
     inv: String,
 }
+
 impl Player {
-    fn new(name :&str, btag :&str, rdy :bool, h :bool, d :bool, t :bool, inv :&str) -> Player {
+    fn new(name: &str, btag: &str, rdy: bool, h: bool, d: bool, t: bool, inv: &str) -> Player {
         Player {
             name: name.to_string(),
             btag: btag.to_string(),
-            rdy: false,
-            h: true,
-            d: true,
-            t: true,
+            rdy: rdy,
+            h: h,
+            d: d,
+            t: t,
             inv: inv.to_string(),
         }
     }
 }
 
 fn startmix(name: &str) {
-    loop {
-
-    }
     println!("{} заехал в очередь. В очереди людей", name);
 }
 
@@ -76,7 +73,7 @@ fn main() {
     // Establish and use a websocket connection
     let (mut connection, _) = discord.connect().expect("connect failed");
     println!("Ready.");
-    let mut list: Vec<Player>;
+    let mut list = Vec::<Player>::new();
     let newplayer = Player::new("", "", false, true, true, true, "");
     list.push(newplayer);
 
@@ -84,40 +81,38 @@ fn main() {
         match connection.recv_event() {
             Ok(Event::MessageCreate(message)) => {
                 match message.content.as_str() {
-
                     "!wshelp" => {
                         let wshelp = "Отчаяние =). Введите !wscmd";
                         let _ = discord.send_message(message.channel_id, wshelp, "", false);
-                    },
+                    }
                     "!wsreg" => {
                         let wsreg = "Введите команду !wsreg вместе с батлтагом. Например: !wsreg Valera#228";
                         let _ = discord.send_message(message.channel_id, wsreg, "", false);
-                    },
+                    }
                     "!wscmd" => {
-                        let wscmd = include_str!("cmd.ws");
+                        let wscmd = include_str!("../cmd.ws");
                         let _ = discord.send_message(message.channel_id, wscmd, "", false);
-                        },
+                    }
                     "!wsmix" => {
                         let wsmix = "Вы собрались поиграть миксы?";
                         let _ = discord.send_message(message.channel_id, wsmix, "", false);
-                    },
+                    }
                     "!wsmixgo" => {
-                        for i in list {
+                        for i in list.iter() {
                             if i.name == message.author.name {
                                 // do stuff
                                 let _ = discord.send_message(message.channel_id, "Вы встали в очередь для поиска миксов", "", false);
-                                for i in list {
-                                    if i.rdy == true {
-                                        let listmsg = format!("Игрок {} тоже ищет миксы", i.name);
+                                for j in list.iter() {
+                                    if j.rdy == true {
+                                        let listmsg = format!("Игрок {} тоже ищет миксы", j.name);
                                         let _ = discord.send_message(message.channel_id, &listmsg, "", false);
                                     } else { return; }
                                 }
-                            }
-                            else {
+                            } else {
                                 let _ = discord.send_message(message.channel_id, "Введите команду !wsreg вместе с батлтагом. Например: !wsreg Valera#228", "", false);
                             };
                         };
-                    },
+                    }
                     //_ => {
                     //    let btag_reg = Regex::new(r"^!wsad\s+([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}$").unwrap();
                     //    if let Some(caps) = btag_reg.captures(&message.content) {
@@ -134,7 +129,7 @@ fn main() {
                     //    };
                     //},
                     _ => {
-                        if let Some(caps) = btag_reg.captures(&message.content) {
+                        if let Some(_) = btag_reg.captures(&message.content) {
                             println!("Определен");
                             for cap in re.captures_iter(&message.content) {
                                 println!("Привязан - {}", &cap[0]);
@@ -148,28 +143,24 @@ fn main() {
                                 let acrat = format!("Ваш актуальный рейтинг: {}", rating);
                                 let _ = discord.send_message(message.channel_id, &acrat, "", false);
                                 println!("Рейтинг - {}", rating);
-                                let mixname = message.author.name;
                                 let fbtag = format!("{}#{}", name, id);
-                                let newplayer = Player::new(&mixname, &fbtag, false, true, true, true, "");
+                                let newplayer = Player::new(message.author.name.as_str(), &fbtag, false, true, true, true, "");
                                 list.push(newplayer);
-                                };
+                            };
                         };
-
-                    },
-                    _ => {},
+                    }
                 };
-
-            },
+            }
             Ok(Event::ServerMemberAdd(serverid, member)) => {
                 let welcome = "Добропожаловать на сервер уважаемый";
                 println!("{:?} {:?} - вы на планете № {:?}", &welcome, &member.nick, &serverid);
                 break
-            },
-            Ok(_) => {},
+            }
+            Ok(_) => {}
             Err(discord::Error::Closed(code, body)) => {
                 println!("Gateway closed on us with code {:?}: {}", code, body);
                 break
-            },
+            }
             Err(err) => println!("Receive error: {:?}", err),
         };
     };

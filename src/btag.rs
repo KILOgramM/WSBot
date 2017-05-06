@@ -1,4 +1,3 @@
-/////////
 extern crate discord;
 extern crate reqwest;
 extern crate regex;
@@ -9,8 +8,8 @@ use discord::Discord;
 use discord::model::Event;
 
 struct Player {
-    discord: &str,
-    name: &str,
+    discord: str,
+    name: str,
 }
 //Ловим и вырезаем батл таг
 fn slicebtag() {
@@ -49,6 +48,3 @@ fn actualrating() {
 
     println!("{}-{} rating: {}", name, id, rating);
 }
-
-
-////
