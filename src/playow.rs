@@ -1,4 +1,3 @@
-/////////
 extern crate reqwest;
 extern crate regex;
 
@@ -17,6 +16,7 @@ fn load_overwatch_rating(name: &str, id: &str) -> String {
 
     return rating.to_string();
 }
+
 fn slicebtag(cap: &str) {
     let btag_reg = Regex::new(r"^!wsreg\s+([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}$").unwrap();
 
@@ -40,6 +40,3 @@ fn actualrating() {
 
     println!("{}-{} rating: {}", name, id, rating);
 }
-
-
-////
