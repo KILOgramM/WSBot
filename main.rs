@@ -12,6 +12,7 @@ use std::io::Read;
 struct Player {
     name: String,
     btag: String,
+    rtg: String,
     rdy: bool,
     h: bool, // Хил?
     d: bool, // Дамагер?
@@ -20,10 +21,11 @@ struct Player {
 }
 
 impl Player {
-    fn new(name: &str, btag: &str, rdy: bool, h: bool, d: bool, t: bool, inv: &str) -> Player {
+    fn new(name: &str, btag: &str, rtg: &str, rdy: bool, h: bool, d: bool, t: bool, inv: &str) -> Player {
         Player {
             name: name.to_string(),
             btag: btag.to_string(),
+            rtg: rtg.to_string(),
             rdy: rdy,
             h: h,
             d: d,
@@ -69,28 +71,30 @@ fn main() {
     let btag_reg = Regex::new(r"^!wsreg\s+([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}$").unwrap(); //форма среза текста "!wsreg battletag#123"
     let re = Regex::new(r"([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}").unwrap();//форма среза текста "battletag#123"
     // Log in to Discord using a bot token from the environment
-    let discord = Discord::from_bot_token("MzA4MDQ4NzQ0NzgyMzY0Njcy.C-qiOw.YG8nGwogD7FTRxNTotFhLWCr3Dg").expect("толи сервер толи токен");
+    let discord = Discord::from_bot_token("MzA4MDQ4NzQ0NzgyMzY0Njcy.C_AEnQ.OOXAryqsK0YEBOSdHpBAV78KWOs").expect("толи сервер толи токен");
     // Establish and use a websocket connection
     let (mut connection, _) = discord.connect().expect("connect failed");
     println!("Ready.");
     let mut list = Vec::<Player>::new();
-    let newplayer = Player::new("", "", false, true, true, true, "");
+    let newplayer = Player::new("", "", "", false, true, true, true, "");
     list.push(newplayer);
-
     loop {
         match connection.recv_event() {
             Ok(Event::MessageCreate(message)) => {
                 match message.content.as_str() {
+
                     "!wshelp" => {
                         let wshelp = "Отчаяние =). Введите !wscmd";
                         let _ = discord.send_message(message.channel_id, wshelp, "", false);
+                    }"!wstake" => {
+                        let _ = discord.send_message(message.channel_id, "https://discordapp.com/oauth2/authorize?&client_id=308048744782364672&scope=bot&permissions=0", "", false);
                     }
                     "!wsreg" => {
                         let wsreg = "Введите команду !wsreg вместе с батлтагом. Например: !wsreg Valera#228";
                         let _ = discord.send_message(message.channel_id, wsreg, "", false);
                     }
                     "!wscmd" => {
-                        let wscmd = include_str!("../cmd.ws");
+                        let wscmd = include_str!("cmd.ws");
                         let _ = discord.send_message(message.channel_id, wscmd, "", false);
                     }
                     "!wsmix" => {
@@ -98,21 +102,24 @@ fn main() {
                         let _ = discord.send_message(message.channel_id, wsmix, "", false);
                     }
                     "!wsmixgo" => {
-                        for i in list.iter() {
+                        for i in list.iter_mut() {
                             if i.name == message.author.name {
-                                // do stuff
-                                let _ = discord.send_message(message.channel_id, "Вы встали в очередь для поиска миксов", "", false);
-                                for j in list.iter() {
-                                    if j.rdy == true {
-                                        let listmsg = format!("Игрок {} тоже ищет миксы", j.name);
-                                        let _ = discord.send_message(message.channel_id, &listmsg, "", false);
-                                    } else { return; }
-                                }
-                            } else {
-                                let _ = discord.send_message(message.channel_id, "Введите команду !wsreg вместе с батлтагом. Например: !wsreg Valera#228", "", false);
+                                i.rdy = true;
+                                let _ = discord.send_message(message.channel_id, "Вы встали в очередь для поиска миксов", "", false);}
                             };
-                        };
                     }
+                    "!wsmixlist" => {
+                        let _ = discord.send_message(message.channel_id, "**Список игроков которые ищут микс**", "", false);
+                        for j in list.iter() {
+                            if j.rdy == true {
+                                println!("игрок");
+                                let listmsg = format!("@{} | battletag - {} | рейтинг - {}", j.name, j.btag, j.rtg);
+                                let _ = discord.send_message(message.channel_id, &listmsg, "", false);
+                            };
+                            };
+                        }
+
+
                     //_ => {
                     //    let btag_reg = Regex::new(r"^!wsad\s+([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}$").unwrap();
                     //    if let Some(caps) = btag_reg.captures(&message.content) {
@@ -144,24 +151,27 @@ fn main() {
                                 let _ = discord.send_message(message.channel_id, &acrat, "", false);
                                 println!("Рейтинг - {}", rating);
                                 let fbtag = format!("{}#{}", name, id);
-                                let newplayer = Player::new(message.author.name.as_str(), &fbtag, false, true, true, true, "");
+                                let newplayer = Player::new(message.author.name.as_str(), &fbtag, &rating, false, true, true, true, "");
                                 list.push(newplayer);
                             };
                         };
                     }
+
                 };
             }
             Ok(Event::ServerMemberAdd(serverid, member)) => {
-                let welcome = "Добропожаловать на сервер уважаемый";
-                println!("{:?} {:?} - вы на планете № {:?}", &welcome, &member.nick, &serverid);
-                break
-            }
+               let welcome = "Добропожаловать на сервер уважаемый";
+               println!("{:?} {:?} - вы на планете № {:?}", &welcome, &member.nick, &serverid);
+               break
+             }
             Ok(_) => {}
             Err(discord::Error::Closed(code, body)) => {
                 println!("Gateway closed on us with code {:?}: {}", code, body);
                 break
             }
-            Err(err) => println!("Receive error: {:?}", err),
+            Err(err) => {
+                println!("Receive error: {:?}", err)
+            }
         };
     };
 }
