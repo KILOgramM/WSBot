@@ -163,9 +163,9 @@ fn main() {
                             for cap in re.captures_iter(&message.content) {
                                 println!("Привязан - {}", &cap[0]);
 
-                                let mut msg = String::new();
+                                let mut msg = String::from(format!("{}\n```markdown\n", &message.author.mention()));
 
-                                let btmsg = format!("{}\n\nК вам привязан батлтаг - {}", &message.author.mention(), &cap[0]);
+                                let btmsg = format!("\nК вам привязан батлтаг - {}", &cap[0]);
                                 msg.push_str(&btmsg);
 
                                 let fullbtag = cap;
@@ -175,7 +175,7 @@ fn main() {
                                 println!("Разбит - {} - {}", name, id);
                                 
                                 if let Some(rating) = load_overwatch_rating(name, id) {
-                                    let acrat = format!("Ваш актуальный рейтинг: {}", &rating);
+                                    let acrat = format!("\nВаш актуальный рейтинг: {}", &rating);
                                     msg.push_str(&acrat);
 
                                     println!("Рейтинг - {}", rating);
@@ -183,9 +183,10 @@ fn main() {
                                     let newplayer = Player::new(message.author.name.as_str(), &fbtag, &rating, false, true, true, true, "");
                                     list.push(newplayer);
                                 } else {
-                                    msg.push_str("\n\nНе удалось загрузить ваш рейтинг");
+                                    msg.push_str("\nНе удалось загрузить ваш рейтинг");
                                 }
 
+                                msg.push_str("```");
                                 let _ = discord.send_message(message.channel_id, &msg, "", false);
                             };
                         };
