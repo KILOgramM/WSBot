@@ -43,15 +43,37 @@ fn stopmix(name: &str) {
     println!("{} вышел из очереди", name);
 }
 
-fn load_overwatch_rating(name: &str, id: &str) -> String {
+fn load_overwatch_rating(name: &str, id: &str) -> Option<String> {
     let url = &format!("https://playoverwatch.com/en-us/career/pc/eu/{}-{}", name, id);
-    let mut resp = reqwest::get(url).expect("Wrong url");
-    let regex = Regex::new("<div class=\"u-align-center h6\">(\\d+)</div>").unwrap();
-    let mut content = String::new();
-    resp.read_to_string(&mut content).expect("Rating downloading error");
-    let rating = regex.captures(&content).unwrap().get(1).expect("Rating not found").as_str();
-    return rating.to_string();
+
+    match reqwest::get(url) {
+        Ok(mut resp) => {
+            let regex = Regex::new("<div class=\"u-align-center h6\">(\\d+)</div>").unwrap();
+            let mut content = String::new();
+            
+            match resp.read_to_string(&mut content) {
+                Ok(_) => {
+                    if let Some(values)  = regex.captures(&content) {
+                        if let Some(rating) = values.get(1) {
+                            return Some(rating.as_str().to_string());
+                        }
+                    } 
+
+                    None
+                },
+                Err(e) => {
+                    println!("{}", e.to_string());
+                    None
+                }
+            }
+        },
+        Err(e) => {
+            println!("{}", e.to_string());
+            None
+        }
+    }
 }
+
 //fn actualrating(discord: &Discord, name :&str , id :&str,) {
 //    let rating = load_overwatch_rating(name, id);
 //    let acrat = ("{}#{} ваш актуальный рейтинг: {}", name, id, rating);
@@ -140,19 +162,32 @@ fn main() {
                             println!("Определен");
                             for cap in re.captures_iter(&message.content) {
                                 println!("Привязан - {}", &cap[0]);
-                                let btmsg = format!("К вам привязан батлтаг - {}", &cap[0]);
-                                let _ = discord.send_message(message.channel_id, &btmsg, "", false);
+
+                                let mut msg = String::from(format!("{}\n```markdown\n", &message.author.mention()));
+
+                                let btmsg = format!("\nК вам привязан батлтаг - {}", &cap[0]);
+                                msg.push_str(&btmsg);
+
                                 let fullbtag = cap;
                                 let mut s = fullbtag.get(0).unwrap().as_str().splitn(2, '#');
                                 let (name, id) = (s.next().unwrap(), s.next().unwrap());
+
                                 println!("Разбит - {} - {}", name, id);
-                                let rating = load_overwatch_rating(name, id);
-                                let acrat = format!("Ваш актуальный рейтинг: {}", rating);
-                                let _ = discord.send_message(message.channel_id, &acrat, "", false);
-                                println!("Рейтинг - {}", rating);
-                                let fbtag = format!("{}#{}", name, id);
-                                let newplayer = Player::new(message.author.name.as_str(), &fbtag, &rating, false, true, true, true, "");
-                                list.push(newplayer);
+                                
+                                if let Some(rating) = load_overwatch_rating(name, id) {
+                                    let acrat = format!("\nВаш актуальный рейтинг: {}", &rating);
+                                    msg.push_str(&acrat);
+
+                                    println!("Рейтинг - {}", rating);
+                                    let fbtag = format!("{}#{}", name, id);
+                                    let newplayer = Player::new(message.author.name.as_str(), &fbtag, &rating, false, true, true, true, "");
+                                    list.push(newplayer);
+                                } else {
+                                    msg.push_str("\nНе удалось загрузить ваш рейтинг");
+                                }
+
+                                msg.push_str("```");
+                                let _ = discord.send_message(message.channel_id, &msg, "", false);
                             };
                         };
                     }
