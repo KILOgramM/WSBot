@@ -3,13 +3,14 @@ extern crate regex;
 extern crate reqwest;
 //extern crate mysql;
 //VH14.spaceweb.ru
-use discord::Discord;
+use discord::{Discord, State};
 use discord::model::Event;
 use regex::Regex;
 use std::io::Read;
 
 // Элемент очереди
 struct Player {
+    did: String,
     name: String,
     btag: String,
     rtg: String,
@@ -21,8 +22,9 @@ struct Player {
 }
 
 impl Player {
-    fn new(name: &str, btag: &str, rtg: &str, rdy: bool, h: bool, d: bool, t: bool, inv: &str) -> Player {
+    fn new(did: &str, name: &str, btag: &str, rtg: &str, rdy: bool, h: bool, d: bool, t: bool, inv: &str) -> Player {
         Player {
+            did: did.to_string(),
             name: name.to_string(),
             btag: btag.to_string(),
             rtg: rtg.to_string(),
@@ -45,7 +47,7 @@ impl Player {
 
 
 fn load_overwatch_rating(btag: &str) -> String {
-    let mut s = btag.get(0).unwrap().as_str().splitn(2, '#');
+    let mut s = btag.splitn(2, '#');
     let (name, id) = (s.next().unwrap(), s.next().unwrap());
     let url = &format!("https://playoverwatch.com/en-us/career/pc/eu/{}-{}", name, id);
     println!("сам урл есть - {}", &url);
@@ -68,20 +70,22 @@ fn load_overwatch_rating(btag: &str) -> String {
 
 fn main() {
     let btag_reg = Regex::new(r"^!wsreg\s+([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}$").expect("не найдена команда !wsreg btag"); //форма среза текста "!wsreg battletag#123"
-    let re = Regex::new(r"([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}").expect("не найден баттл таг");//форма среза текста "battletag#123"
+    let btag_new = Regex::new(r"^!wsbt\s+([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}$").expect("не найдена команда !wsbt btag"); //форма среза текста "!wsbt battletag#123"
+    let bt = Regex::new(r"([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}").expect("не найден баттл таг");//форма среза текста "battletag#123"
     // Log in to Discord using a bot token from the environment
     let discord = Discord::from_bot_token("MzA4MDQ4NzQ0NzgyMzY0Njcy.C_AEnQ.OOXAryqsK0YEBOSdHpBAV78KWOs").expect("толи сервер толи токен");
     // Establish and use a websocket connection
-    let (mut connection, _) = discord.connect().expect("connect failed");
+    let (mut connection, ready) = discord.connect().expect("connect failed");
     println!("Ready.");
+    let state = State::new(ready);
+    let botdiscordid = format!("{}", state.user().id);
     let mut list = Vec::<Player>::new();
-    let newplayer = Player::new("", "", "", false, true, true, true, "");
+    let newplayer = Player::new(&botdiscordid, "", "", "", false, true, true, true, "");
     list.push(newplayer);
     loop {
         match connection.recv_event() {
             Ok(Event::MessageCreate(message)) => {
                 match message.content.as_str() {
-
                     "!wshelp" => {
                         let wshelp = "Отчаяние =). Введите !wscmd KILOgramM достал уже все время перезагружать и обнулять списки";
                         let _ = discord.send_message(message.channel_id, wshelp, "", false);
@@ -106,53 +110,63 @@ fn main() {
                             if i.name == message.author.name {
                                 i.rdy = true;
                                 let gomsg = format!("Игрок {} встал в очередь для поиска миксов", &message.author.name);
-                                let _ = discord.send_message(message.channel_id, &gomsg, "", false);}
-                            };
+                                let _ = discord.send_message(message.channel_id, &gomsg, "", false);
+                            }
+                        };
                     }
                     "!wsmixstop" => {
                         for i in list.iter_mut() {
                             if i.name == message.author.name {
                                 i.rdy = false;
                                 let stopmsg = format!("Игрок {} вышел из очереди для поиска миксов", &message.author.name);
-                                let _ = discord.send_message(message.channel_id, &stopmsg, "", false);}
+                                let _ = discord.send_message(message.channel_id, &stopmsg, "", false);
+                            }
                         };
                     }
                     "!wsmixlist" => {
                         let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут микс**__", "", false);
-                        for j in list.iter() {
-                            if j.rdy == true {
+                        for i in list.iter() {
+                            if i.rdy == true {
                                 println!("игрок");
-                                let listmsg = format!("{} | battletag - {} | рейтинг - {}", j.name, j.btag, j.rtg);
+                                let listmsg = format!("{} | {} | рейт - {}", i.name, i.btag, i.rtg);
                                 let _ = discord.send_message(message.channel_id, &listmsg, "", false);
                             };
-                            };
-                        }
-                    _ => {
-                        if let Some(_) = btag_reg.captures(&message.content) {
-                            println!("Определен");
-                            for btag in re.captures_iter(&message.content) {
-                                let bt = format!("{}", &btag);
-                                let newwplayer = Player::new(message.author.name.as_str(), &bt, "", false, true, true, true, "");
-                                list.push(newwplayer);
-                                let btmsg = format!("К игроку {} привязан батлтаг - {}", message.author, &btag[0]);
-                                let _ = discord.send_message(message.channel_id, &btmsg, "", false);
-                                let rating = load_overwatch_rating(&btag);
-                                for i in list.iter_mut() {
-                                    if i.name == message.author.name {
-                                        i.rtg = &rating;
-                                        let acrat = format!("Ваш актуальный рейтинг: {}", rating);
-                                        let _ = discord.send_message(message.channel_id, &acrat, "", false);
-                                    };
-                                }
-
-                            };
-
                         };
                     }
 
-
-                };
-            }
+                    _ => {
+                        if let Some(_) = btag_reg.captures(&message.content) {
+                            println!("Определен");
+                            for btag in bt.captures_iter(&message.content) {
+                                let did = format!("{}", message.author.id);
+                                for i in list.iter_mut {
+                                    if i.name == message.author.name {
+                                            let didmsg = format!("Игрок с именем {} уже зарегистрирован", message.author.name);
+                                            let _ = discord.send_message(message.channel_id, &didmsg, "", false);
+                                            let hz = format!("{}", &btag[0]);
+                                            i.btag = hz;
+                                            let gomsg = format!("К игроку {} привязан новый батлтаг - {}", message.author.name, &btag[0]);
+                                            let _ = discord.send_message(message.channel_id, &gomsg, "", false);
+                                            let rating = load_overwatch_rating(&btag[0]);
+                                            i.rtg = rating.to_string();
+                                            let acrat = format!("Ваш актуальный рейтинг: {}", &rating);
+                                            let _ = discord.send_message(message.channel_id, &acrat, "", false);
+                                        } else {
+                                            let newplayer = Player::new(&did, message.author.name.as_str(), &btag[0], "", false, true, true, true, "");
+                                            list.push(newplayer);
+                                            let btmsg = format!("К игроку {} привязан батлтаг - {}", message.author.name, &btag[0]);
+                                            let _ = discord.send_message(message.channel_id, &btmsg, "", false);
+                                            let rating = load_overwatch_rating(&btag[0]);
+                                            i.rtg = rating.to_string();
+                                            let acrat = format!("Ваш актуальный рейтинг: {}", &rating);
+                                            let _ = discord.send_message(message.channel_id, &acrat, "", false);
+                                        }
+                                    };
+                                };
+                            };
+                        }
+                    };
+                }
             Ok(Event::ServerMemberAdd(serverid, member)) => {
                let welcome = "Добропожаловать на сервер уважаемый";
                println!("{:?} {:?} - вы на планете № {:?}", &welcome, &member.nick, &serverid);
