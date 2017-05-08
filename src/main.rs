@@ -125,7 +125,7 @@ fn main() {
                     }
                     "!wsmixlist" => {
                         let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут микс**__", "", false);
-                        for i in list.iter() {
+                        for i in list.iter_mut() {
                             if i.rdy == true {
                                 println!("игрок");
                                 let listmsg = format!("{} | {} | рейт - {}", i.name, i.btag, i.rtg);
@@ -137,9 +137,9 @@ fn main() {
                     _ => {
                         if let Some(_) = btag_reg.captures(&message.content) {
                             println!("Определен");
-                            for btag in bt.captures_iter(&message.content) {
+                            'try: for btag in bt.captures_iter(&message.content) {
                                 let did = format!("{}", message.author.id);
-                                for i in list.iter_mut {
+                                for i in list.iter_mut() {
                                     if i.name == message.author.name {
                                             let didmsg = format!("Игрок с именем {} уже зарегистрирован", message.author.name);
                                             let _ = discord.send_message(message.channel_id, &didmsg, "", false);
@@ -151,17 +151,17 @@ fn main() {
                                             i.rtg = rating.to_string();
                                             let acrat = format!("Ваш актуальный рейтинг: {}", &rating);
                                             let _ = discord.send_message(message.channel_id, &acrat, "", false);
-                                        } else {
-                                            let newplayer = Player::new(&did, message.author.name.as_str(), &btag[0], "", false, true, true, true, "");
-                                            list.push(newplayer);
-                                            let btmsg = format!("К игроку {} привязан батлтаг - {}", message.author.name, &btag[0]);
-                                            let _ = discord.send_message(message.channel_id, &btmsg, "", false);
-                                            let rating = load_overwatch_rating(&btag[0]);
-                                            i.rtg = rating.to_string();
-                                            let acrat = format!("Ваш актуальный рейтинг: {}", &rating);
-                                            let _ = discord.send_message(message.channel_id, &acrat, "", false);
+                                        break 'try;
                                         }
                                     };
+                                let btmsg = format!("К игроку {} привязан батлтаг - {}", message.author.name, &btag[0]);
+                                let _ = discord.send_message(message.channel_id, &btmsg, "", false);
+                                let rating = load_overwatch_rating(&btag[0]);
+                                let rt = rating.to_string();
+                                let newplayer = Player::new(&did, message.author.name.as_str(), &btag[0], &rt, false, true, true, true, "");
+                                list.push(newplayer);
+                                let acrat = format!("Ваш актуальный рейтинг: {}", &rating);
+                                let _ = discord.send_message(message.channel_id, &acrat, "", false);
                                 };
                             };
                         }
