@@ -35,41 +35,40 @@ impl Player {
     }
 }
 
-fn startmix(name: &str) {
-    println!("{} заехал в очередь. В очереди людей", name);
-}
+//fn startmix(name: &str) {
+//    println!("{} заехал в очередь. В очереди людей", name);
+//}
 
-fn stopmix(name: &str) {
-    println!("{} вышел из очереди", name);
-}
+//fn stopmix(name: &str) {
+//    println!("{} вышел из очереди", name);
+//}
 
-fn load_overwatch_rating(name: &str, id: &str) -> String {
+
+fn load_overwatch_rating(btag: &str) -> String {
+    let mut s = btag.get(0).unwrap().as_str().splitn(2, '#');
+    let (name, id) = (s.next().unwrap(), s.next().unwrap());
     let url = &format!("https://playoverwatch.com/en-us/career/pc/eu/{}-{}", name, id);
+    println!("сам урл есть - {}", &url);
     let mut resp = reqwest::get(url).expect("Wrong url");
-    let regex = Regex::new("<div class=\"u-align-center h6\">(\\d+)</div>").unwrap();
+    println!("Запрос УРЛ успешен");
+    let regex = Regex::new("<div class=\"u-align-center h6\">(\\d+)</div>").expect("не удалось найти строчку с рейтнгом");
+    println!("Форма регекса сделана");
     let mut content = String::new();
+    println!("новая строка?");
     resp.read_to_string(&mut content).expect("Rating downloading error");
-    let rating = regex.captures(&content).unwrap().get(1).expect("Rating not found").as_str();
+    println!("весь контент страницы в строке?");
+    let result = regex.captures(&content);
+    if result.is_none() {
+        return "Valera#228".to_string();
+    };
+    let rating = result.unwrap().get(1).expect("Rating not found").as_str();
+    println!("нашли б таг в строке");
     return rating.to_string();
 }
-//fn actualrating(discord: &Discord, name :&str , id :&str,) {
-//    let rating = load_overwatch_rating(name, id);
-//    let acrat = ("{}#{} ваш актуальный рейтинг: {}", name, id, rating);
-//    let _ = discord.send_message(message.channel_id, &acrat, "", false);
-//    println!("{}#{} actual rating: {}", name, id, rating);
-//}
-
-//let mut stack = Vec::new();
-//stack.push(1);
-//stack.push(2);
-//stack.push(3);
-//while let Some(top) = stack.pop() {
-//println!("{}", top);
-//}
 
 fn main() {
-    let btag_reg = Regex::new(r"^!wsreg\s+([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}$").unwrap(); //форма среза текста "!wsreg battletag#123"
-    let re = Regex::new(r"([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}").unwrap();//форма среза текста "battletag#123"
+    let btag_reg = Regex::new(r"^!wsreg\s+([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}$").expect("не найдена команда !wsreg btag"); //форма среза текста "!wsreg battletag#123"
+    let re = Regex::new(r"([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}").expect("не найден баттл таг");//форма среза текста "battletag#123"
     // Log in to Discord using a bot token from the environment
     let discord = Discord::from_bot_token("MzA4MDQ4NzQ0NzgyMzY0Njcy.C_AEnQ.OOXAryqsK0YEBOSdHpBAV78KWOs").expect("толи сервер толи токен");
     // Establish and use a websocket connection
@@ -84,9 +83,10 @@ fn main() {
                 match message.content.as_str() {
 
                     "!wshelp" => {
-                        let wshelp = "Отчаяние =). Введите !wscmd";
+                        let wshelp = "Отчаяние =). Введите !wscmd KILOgramM достал уже все время перезагружать и обнулять списки";
                         let _ = discord.send_message(message.channel_id, wshelp, "", false);
-                    }"!wstake" => {
+                    }
+                    "!wstake" => {
                         let _ = discord.send_message(message.channel_id, "https://discordapp.com/oauth2/authorize?&client_id=308048744782364672&scope=bot&permissions=0", "", false);
                     }
                     "!wsreg" => {
@@ -105,57 +105,51 @@ fn main() {
                         for i in list.iter_mut() {
                             if i.name == message.author.name {
                                 i.rdy = true;
-                                let _ = discord.send_message(message.channel_id, "Вы встали в очередь для поиска миксов", "", false);}
+                                let gomsg = format!("Игрок {} встал в очередь для поиска миксов", &message.author.name);
+                                let _ = discord.send_message(message.channel_id, &gomsg, "", false);}
                             };
                     }
+                    "!wsmixstop" => {
+                        for i in list.iter_mut() {
+                            if i.name == message.author.name {
+                                i.rdy = false;
+                                let stopmsg = format!("Игрок {} вышел из очереди для поиска миксов", &message.author.name);
+                                let _ = discord.send_message(message.channel_id, &stopmsg, "", false);}
+                        };
+                    }
                     "!wsmixlist" => {
-                        let _ = discord.send_message(message.channel_id, "**Список игроков которые ищут микс**", "", false);
+                        let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут микс**__", "", false);
                         for j in list.iter() {
                             if j.rdy == true {
                                 println!("игрок");
-                                let listmsg = format!("@{} | battletag - {} | рейтинг - {}", j.name, j.btag, j.rtg);
+                                let listmsg = format!("{} | battletag - {} | рейтинг - {}", j.name, j.btag, j.rtg);
                                 let _ = discord.send_message(message.channel_id, &listmsg, "", false);
                             };
                             };
                         }
-
-
-                    //_ => {
-                    //    let btag_reg = Regex::new(r"^!wsad\s+([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}$").unwrap();
-                    //    if let Some(caps) = btag_reg.captures(&message.content) {
-                    //        let re = Regex::new(r"([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}").unwrap();
-                    //        for cap in re.captures_iter(&message.content) {
-                    //            let fullbtag = cap;
-                    //            let mut s = fullbtag.get(0).unwrap().as_str().splitn(2, '#');
-                    //            let (name, id) = (s.next().unwrap(), s.next().unwrap());
-                    //            println!("foo");
-                    //            let rating = load_overwatch_rating(name, id);
-                    //            let acrat = format!("Актуальный рейтинг игрока {}#{}: {}",name, id, rating);
-                    //            let _ = discord.send_message(message.channel_id, &acrat, "", false);
-                    //            };
-                    //    };
-                    //},
                     _ => {
                         if let Some(_) = btag_reg.captures(&message.content) {
                             println!("Определен");
-                            for cap in re.captures_iter(&message.content) {
-                                println!("Привязан - {}", &cap[0]);
-                                let btmsg = format!("К вам привязан батлтаг - {}", &cap[0]);
+                            for btag in re.captures_iter(&message.content) {
+                                let bt = format!("{}", &btag);
+                                let newwplayer = Player::new(message.author.name.as_str(), &bt, "", false, true, true, true, "");
+                                list.push(newwplayer);
+                                let btmsg = format!("К игроку {} привязан батлтаг - {}", message.author, &btag[0]);
                                 let _ = discord.send_message(message.channel_id, &btmsg, "", false);
-                                let fullbtag = cap;
-                                let mut s = fullbtag.get(0).unwrap().as_str().splitn(2, '#');
-                                let (name, id) = (s.next().unwrap(), s.next().unwrap());
-                                println!("Разбит - {} - {}", name, id);
-                                let rating = load_overwatch_rating(name, id);
-                                let acrat = format!("Ваш актуальный рейтинг: {}", rating);
-                                let _ = discord.send_message(message.channel_id, &acrat, "", false);
-                                println!("Рейтинг - {}", rating);
-                                let fbtag = format!("{}#{}", name, id);
-                                let newplayer = Player::new(message.author.name.as_str(), &fbtag, &rating, false, true, true, true, "");
-                                list.push(newplayer);
+                                let rating = load_overwatch_rating(&btag);
+                                for i in list.iter_mut() {
+                                    if i.name == message.author.name {
+                                        i.rtg = &rating;
+                                        let acrat = format!("Ваш актуальный рейтинг: {}", rating);
+                                        let _ = discord.send_message(message.channel_id, &acrat, "", false);
+                                    };
+                                }
+
                             };
+
                         };
                     }
+
 
                 };
             }
@@ -170,7 +164,7 @@ fn main() {
                 break
             }
             Err(err) => {
-                println!("Receive error: {:?}", err)
+                println!("Receive error: {:?}", err);
             }
         };
     };
