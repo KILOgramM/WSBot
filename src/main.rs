@@ -8,13 +8,16 @@ use discord::model::Event;
 use regex::Regex;
 use std::io::Read;
 
+
 // Элемент очереди
 struct Player {
     did: String,
     name: String,
     btag: String,
     rtg: String,
-    rdy: bool,
+    mixrdy: bool,
+    rtgrdy: bool,
+    arcrdy: bool,
     h: bool, // Хил?
     d: bool, // Дамагер?
     t: bool, // Танк?
@@ -22,13 +25,15 @@ struct Player {
 }
 
 impl Player {
-    fn new(did: &str, name: &str, btag: &str, rtg: &str, rdy: bool, h: bool, d: bool, t: bool, inv: &str) -> Player {
+    fn new(did: &str, name: &str, btag: &str, rtg: &str, mixrdy: bool, rtgrdy: bool, arcrdy: bool, h: bool, d: bool, t: bool, inv: &str) -> Player {
         Player {
             did: did.to_string(),
             name: name.to_string(),
             btag: btag.to_string(),
             rtg: rtg.to_string(),
-            rdy: rdy,
+            mixrdy: mixrdy,
+            rtgrdy: rtgrdy,
+            arcrdy: arcrdy,
             h: h,
             d: d,
             t: t,
@@ -44,6 +49,18 @@ impl Player {
 //fn stopmix(name: &str) {
 //    println!("{} вышел из очереди", name);
 //}
+
+//fn identify_or_create_my_channel(discord: &Discord, server: LiveServer) -> Result<Channel> {
+//    for channel in server.channels.into_iter() {
+//        if &channel.name == MY_CHANNEL_NAME && channel.kind == ChannelType::Text {
+//            return Ok(Channel::Public(channel));
+//        }
+//    }
+//discord.create_channel(&server.id, MY_CHANNEL_NAME, ChannelType::Text)
+//};
+
+
+
 
 
 fn load_overwatch_rating(btag: &str) -> String {
@@ -80,7 +97,7 @@ fn main() {
     let state = State::new(ready);
     let botdiscordid = format!("{}", state.user().id);
     let mut list = Vec::<Player>::new();
-    let newplayer = Player::new(&botdiscordid, "", "", "", false, true, true, true, "");
+    let newplayer = Player::new(&botdiscordid, "", "", "", false, false, false, true, true, true, "");
     list.push(newplayer);
     loop {
         match connection.recv_event() {
@@ -108,7 +125,9 @@ fn main() {
                     "!wsmixgo" => {
                         for i in list.iter_mut() {
                             if i.name == message.author.name {
-                                i.rdy = true;
+                                i.mixrdy = true;
+                                i.rtgrdy = false;
+                                i.arcrdy = false;
                                 let gomsg = format!("Игрок {} встал в очередь для поиска миксов", &message.author.name);
                                 let _ = discord.send_message(message.channel_id, &gomsg, "", false);
                             }
@@ -117,7 +136,7 @@ fn main() {
                     "!wsmixstop" => {
                         for i in list.iter_mut() {
                             if i.name == message.author.name {
-                                i.rdy = false;
+                                i.mixrdy = false;
                                 let stopmsg = format!("Игрок {} вышел из очереди для поиска миксов", &message.author.name);
                                 let _ = discord.send_message(message.channel_id, &stopmsg, "", false);
                             }
@@ -126,14 +145,92 @@ fn main() {
                     "!wsmixlist" => {
                         let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут микс**__", "", false);
                         for i in list.iter_mut() {
-                            if i.rdy == true {
+                            if i.mixrdy == true {
                                 println!("игрок");
-                                let listmsg = format!("{} | {} | рейт - {}", i.name, i.btag, i.rtg);
+                                let listmsg = format!("@{} | {} | рейт - {}", i.name, i.btag, i.rtg);
                                 let _ = discord.send_message(message.channel_id, &listmsg, "", false);
                             };
                         };
                     }
-
+                    "!wsrtgo" => {
+                        for i in list.iter_mut() {
+                            if i.name == message.author.name {
+                                i.mixrdy = false;
+                                i.rtgrdy = true;
+                                i.arcrdy = false;
+                                let gomsg = format!("Игрок {} встал в очередь для поиска совместной игры в рейтинг", &message.author.name);
+                                let _ = discord.send_message(message.channel_id, &gomsg, "", false);
+                            }
+                        };
+                    }
+                    "!wsrtstop" => {
+                        for i in list.iter_mut() {
+                            if i.name == message.author.name {
+                                i.rtgrdy = false;
+                                let stopmsg = format!("Игрок {} вышел из очереди совместной игры в рейтинг", &message.author.name);
+                                let _ = discord.send_message(message.channel_id, &stopmsg, "", false);
+                            }
+                        };
+                    }
+                    "!wsrtlist" => {
+                        let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут c кем бы поиграть рейтинг**__", "", false);
+                        for i in list.iter_mut() {
+                            if i.rtgrdy == true {
+                                println!("игрок");
+                                let listmsg = format!("@{} | {} | рейт - {}", i.name, i.btag, i.rtg);
+                                let _ = discord.send_message(message.channel_id, &listmsg, "", false);
+                            };
+                        };
+                    }
+                    "!wsplaygo" => {
+                        for i in list.iter_mut() {
+                            if i.name == message.author.name {
+                                i.mixrdy = false;
+                                i.rtgrdy = false;
+                                i.arcrdy = true;
+                                let gomsg = format!("Игрок {} встал в очередь для просто поиграть. Быстрые катки, аркады. ", &message.author.name);
+                                let _ = discord.send_message(message.channel_id, &gomsg, "", false);
+                            }
+                        };
+                    }
+                    "!wsplaystop" => {
+                        for i in list.iter_mut() {
+                            if i.name == message.author.name {
+                                i.arcrdy = false;
+                                let stopmsg = format!("Игрок {} просто наигрался =)", &message.author.name);
+                                let _ = discord.send_message(message.channel_id, &stopmsg, "", false);
+                            }
+                        };
+                    }
+                    "!wsplaylist" => {
+                        let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут c кем бы поиграть рейтинг**__", "", false);
+                        for i in list.iter_mut() {
+                            if i.rtgrdy == true {
+                                println!("игрок");
+                                let listmsg = format!("@{} | {} | рейт - {}", i.name, i.btag, i.rtg);
+                                let _ = discord.send_message(message.channel_id, &listmsg, "", false);
+                            };
+                        };
+                        let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут c кем бы поиграть микс**__", "", false);
+                        for i in list.iter_mut() {
+                            if i.mixrdy == true {
+                                println!("игрок");
+                                let listmsg = format!("@{} | {} | рейт - {}", i.name, i.btag, i.rtg);
+                                let _ = discord.send_message(message.channel_id, &listmsg, "", false);
+                            };
+                        };
+                        let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут c кем бы поиграть**__", "", false);
+                        for i in list.iter_mut() {
+                            if i.arcrdy == true {
+                                println!("игрок");
+                                let listmsg = format!("@{} | {} | рейт - {}", i.name, i.btag, i.rtg);
+                                let _ = discord.send_message(message.channel_id, &listmsg, "", false);
+                            };
+                        };
+                    }
+ //                   "!wsmixroom" => {
+ //                       let (sid, cid) = state.find_voice_user(message.author.id);
+ //                   }
                     _ => {
                         if let Some(_) = btag_reg.captures(&message.content) {
                             println!("Определен");
@@ -158,7 +255,7 @@ fn main() {
                                 let _ = discord.send_message(message.channel_id, &btmsg, "", false);
                                 let rating = load_overwatch_rating(&btag[0]);
                                 let rt = rating.to_string();
-                                let newplayer = Player::new(&did, message.author.name.as_str(), &btag[0], &rt, false, true, true, true, "");
+                                let newplayer = Player::new(&did, message.author.name.as_str(), &btag[0], &rt, false, false, false, true, true, true, "");
                                 list.push(newplayer);
                                 let acrat = format!("Ваш актуальный рейтинг: {}", &rating);
                                 let _ = discord.send_message(message.channel_id, &acrat, "", false);
