@@ -13,6 +13,7 @@ use std::io::Read;
 struct Player {
     did: String,
     name: String,
+    mnt: String,
     disc: String,
     btag: String,
     rtg: String,
@@ -26,10 +27,11 @@ struct Player {
 }
 
 impl Player {
-    fn new(did: &str, name: &str, disc: &str, btag: &str, rtg: &str, mixrdy: bool, rtgrdy: bool, arcrdy: bool, h: bool, d: bool, t: bool, inv: &str) -> Player {
+    fn new(did: &str, name: &str, mnt: &str, disc: &str, btag: &str, rtg: &str, mixrdy: bool, rtgrdy: bool, arcrdy: bool, h: bool, d: bool, t: bool, inv: &str) -> Player {
         Player {
             did: did.to_string(),
             name: name.to_string(),
+            mnt: mnt.to_string(),
             disc: disc.to_string(),
             btag: btag.to_string(),
             rtg: rtg.to_string(),
@@ -61,6 +63,34 @@ impl Player {
 //discord.create_channel(&server.id, MY_CHANNEL_NAME, ChannelType::Text)
 //};
 
+fn crsrchlist(list: &mut Vec<Player>, who: &str) -> String {
+    let mut msg = "```Markdown\n#| Discord tag | Battletag | Актуальный рейтинг |\n```".to_string();
+    match who {
+        "rtg" => {
+            for i in list.iter_mut() {
+                if i.rtgrdy == true {
+                    msg.push_str( & format ! ("| {} | {} | {} |\n", i.mnt, i.btag, i.rtg));
+                };
+            };
+        }
+        "mix" => {
+            for i in list.iter_mut() {
+                if i.mixrdy == true {
+                    msg.push_str( & format ! ("| {} | {} | {} |\n", i.mnt, i.btag, i.rtg));
+                };
+            };
+        }
+        "play" => {
+            for i in list.iter_mut() {
+                if i.arcrdy == true {
+                    msg.push_str( & format ! ("| {} | {} | {} |\n", i.mnt, i.btag, i.rtg));
+                };
+            };
+        }
+        _ => {}
+    }
+    return msg.to_string();
+}
 
 
 
@@ -88,9 +118,7 @@ fn load_overwatch_rating(btag: &str) -> String {
 }
 
 fn main() {
-    let mut result_rtmsg = "```| Discord tag | Battletag | Актуальный рейтинг |\n".to_string();
-    let mut result_mixmsg = "```| Discord tag | Battletag | Актуальный рейтинг |\n".to_string();
-    let mut result_playmsg = "```| Discord tag | Battletag | Актуальный рейтинг |\n".to_string();
+
     let btag_reg = Regex::new(r"^!wsreg\s+([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}$").expect("не найдена команда !wsreg btag"); //форма среза текста "!wsreg battletag#123"
     let btag_new = Regex::new(r"^!wsbt\s+([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}$").expect("не найдена команда !wsbt btag"); //форма среза текста "!wsbt battletag#123"
     let bt = Regex::new(r"([0-9\p{Cyrillic}]|[0-9\p{Latin}]){2,16}#[0-9]{2,6}").expect("не найден баттл таг");//форма среза текста "battletag#123"
@@ -100,10 +128,11 @@ fn main() {
     let (mut connection, ready) = discord.connect().expect("connect failed");
     println!("Ready.");
     let state = State::new(ready);
+    //let mnt = format!("{}", state.user.mention);
     let botdiscordid = format!("{}", state.user().id);
     let mut list = Vec::<Player>::new();
     //let disc = format!("{}", state.user.discriminator);
-    let newplayer = Player::new(&botdiscordid, "", "", "", "", false, false, false, true, true, true, "");
+    let newplayer = Player::new(&botdiscordid, "", "", "", "", "", false, false, false, true, true, true, "");
     list.push(newplayer);
     loop {
         match connection.recv_event() {
@@ -149,16 +178,10 @@ fn main() {
                         };
                     }
                     "!wsmixlist" => {
+                        let rdylist = crsrchlist(&mut list, "mix");
                         let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут микс**__", "", false);
-                        for i in list.iter_mut() {
-                            if i.mixrdy == true {
-                                println!("игрок");
-                                result_mixmsg.push_str(&format!("| {}#{} | {} | {} |\n", i.name, i.disc, i.btag, i.rtg));
-                            };
-                        };
-                        result_mixmsg.push_str(&format!("```"));
-                        let _ = discord.send_message(message.channel_id, &result_mixmsg, "", false);
-                        let mut result_mixmsg = "```| Discord tag | Battletag | Актуальный рейтинг |\n".to_string();
+                        let _ = discord.send_message(message.channel_id, &rdylist, "", false);
+                        let _ = discord.send_message(message.channel_id, "```Markdown\n#Сбор миксов каждый вторник и четверг в 20-30 по МСК, канал - https://discord.gg/yfHvARP\n```", "", false);
                     }
                     "!wsrtgo" => {
                         for i in list.iter_mut() {
@@ -181,18 +204,10 @@ fn main() {
                         };
                     }
                     "!wsrtlist" => {
+                        let rdylist = crsrchlist(&mut list, "rtg");
                         let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут c кем бы поиграть рейтинг**__", "", false);
-                        let _ = discord.send_message(message.channel_id, "```Discord tag | Battletag | Актуальный рейтинг```", "", false);
-                        for i in list.iter_mut() {
-                            if i.rtgrdy == true {
-                                println!("игрок");
-                                result_rtmsg.push_str(&format!("| {}#{} | {} | {} |\n", i.name, i.disc, i.btag, i.rtg))
-                            };
-                        };
-                        result_rtmsg.push_str(&format!("```"));
-                        let _ = discord.send_message(message.channel_id, &result_rtmsg, "", false);
-                        let mut result_rtmsg = "```| Discord tag | Battletag | Актуальный рейтинг |\n".to_string();
-                    }
+                        let _ = discord.send_message(message.channel_id, &rdylist, "", false);
+                        }
                     "!wsplaygo" => {
                         for i in list.iter_mut() {
                             if i.name == message.author.name {
@@ -214,36 +229,15 @@ fn main() {
                         };
                     }
                     "!wsplaylist" => {
+                        let rdyrtglist = crsrchlist(&mut list, "rtg");
                         let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут c кем бы поиграть рейтинг**__", "", false);
-                        for i in list.iter_mut() {
-                            if i.rtgrdy == true {
-                                println!("игрок");
-                                result_rtmsg.push_str(&format!("| {}#{} | {} | {} |\n", i.name, i.disc, i.btag, i.rtg))
-                            };
-                        };
-                        result_rtmsg.push_str(&format!("```"));
-                        let _ = discord.send_message(message.channel_id, &result_rtmsg, "", false);
-                        let mut result_rtmsg = "```| Discord tag | Battletag | Актуальный рейтинг |\n".to_string();
-                        let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут c кем бы поиграть микс**__", "", false);
-                        for i in list.iter_mut() {
-                            if i.mixrdy == true {
-                                println!("игрок");
-                                result_mixmsg.push_str(&format!("| {}#{} | {} | {} |\n", i.name, i.disc, i.btag, i.rtg))
-                            };
-                        };
-                        result_mixmsg.push_str(&format!("```"));
-                        let _ = discord.send_message(message.channel_id, &result_mixmsg, "", false);
-                        let mut result_mixmsg = "```| Discord tag | Battletag | Актуальный рейтинг |\n".to_string();
+                        let _ = discord.send_message(message.channel_id, &rdyrtglist, "", false);
+                        let rdymixlist = crsrchlist(&mut list, "mix");
+                        let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут микс**__", "", false);
+                        let _ = discord.send_message(message.channel_id, &rdymixlist, "", false);
+                        let rdyplaylist = crsrchlist(&mut list, "play");
                         let _ = discord.send_message(message.channel_id, "__**Список игроков которые ищут c кем бы поиграть**__", "", false);
-                        for i in list.iter_mut() {
-                            if i.arcrdy == true {
-                                println!("игрок");
-                                result_playmsg.push_str(&format!("| {}#{} | {} | {} |\n", i.name, i.disc, i.btag, i.rtg))
-                            };
-                        };
-                        result_playmsg.push_str(&format!("```"));
-                        let _ = discord.send_message(message.channel_id, &result_playmsg, "", false);
-                        let mut result_playmsg = "```| Discord tag | Battletag | Актуальный рейтинг |\n".to_string();
+                        let _ = discord.send_message(message.channel_id, &rdyplaylist, "", false);
                     }
  //                   "!wsmixroom" => {
  //                       let (sid, cid) = state.find_voice_user(message.author.id);
@@ -273,7 +267,8 @@ fn main() {
                                 let rating = load_overwatch_rating(&btag[0]);
                                 let rt = rating.to_string();
                                 let disc = format!("{}", message.author.discriminator);
-                                let newplayer = Player::new(&did, message.author.name.as_str(), &disc, &btag[0], &rt, false, false, false, true, true, true, "");
+                                let mnt = format!("{}", message.author.mention());
+                                let newplayer = Player::new(&did, message.author.name.as_str(), &mnt, &disc, &btag[0], &rt, false, false, false, true, true, true, "");
                                 list.push(newplayer);
                                 let acrat = format!("Ваш актуальный рейтинг: {}", &rating);
                                 let _ = discord.send_message(message.channel_id, &acrat, "", false);
